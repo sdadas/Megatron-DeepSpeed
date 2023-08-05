@@ -5,6 +5,8 @@
 from abc import ABC
 from abc import abstractmethod
 
+from transformers import PreTrainedTokenizer, AutoTokenizer
+
 from .bert_tokenization import FullTokenizer as FullBertTokenizer
 from .gpt2_tokenization import GPT2Tokenizer
 
@@ -21,6 +23,8 @@ def build_tokenizer(args):
         tokenizer = _BertWordPieceTokenizer(vocab_file=args.vocab_file,
                                             lower_case=True,
                                             vocab_extra_ids=args.vocab_extra_ids)
+    elif args.tokenizer_type == 'HuggingFaceTokenizer':
+        tokenizer = HuggingFaceTokenizer(args.vocab_file)
     elif args.tokenizer_type == 'BertWordPieceCase':
         assert args.vocab_file is not None
         tokenizer = _BertWordPieceTokenizer(vocab_file=args.vocab_file,
@@ -534,3 +538,50 @@ class _NullTokenizer:
     @property
     def additional_special_tokens_ids(self):
         return None
+
+
+class HuggingFaceTokenizer(AbstractTokenizer):
+
+    def __init__(self, tokenizer_dir):
+        name = 'HuggingFace Tokenizer'
+        super().__init__(name)
+        self.tokenizer: PreTrainedTokenizer = AutoTokenizer.from_pretrained(tokenizer_dir)
+        self._inv_vocab = {val: key for key, val in self.tokenizer.get_vocab().items()}
+
+    @property
+    def vocab_size(self):
+        return self.tokenizer.vocab_size
+
+    @property
+    def vocab(self):
+        return self.tokenizer.get_vocab()
+
+    @property
+    def inv_vocab(self):
+        return self._inv_vocab
+
+    def tokenize(self, text):
+        return self.tokenizer.encode(text, add_special_tokens=False)
+
+    def detokenize(self, token_ids):
+        return self.tokenizer.decode(token_ids, skip_special_tokens=True)
+
+    @property
+    def cls(self):
+        return self.tokenizer.cls_token_id
+
+    @property
+    def sep(self):
+        return self.tokenizer.sep_token_id
+
+    @property
+    def pad(self):
+        return self.tokenizer.pad_token_id
+
+    @property
+    def eod(self):
+        return self.tokenizer.eos_token_id
+
+    @property
+    def mask(self):
+        return self.tokenizer.mask_token_id

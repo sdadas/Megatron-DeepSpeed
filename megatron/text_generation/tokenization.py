@@ -8,6 +8,7 @@ import torch
 
 from megatron import get_tokenizer, get_args
 from .communication import broadcast_int_list, broadcast_tensor
+from ..tokenizer.tokenizer import HuggingFaceTokenizer
 
 
 def detokenize_generations(tokens_gpu_tensor,
@@ -28,19 +29,21 @@ def detokenize_generations(tokens_gpu_tensor,
         prompts_plus_generations.append(
             tokenizer.detokenize(sequence_tokens))
         if return_segments:
-            words = []
-            for token in sequence_tokens:
-                if args.tokenizer_type in ['SentencePieceTokenizer', 
-                        'GPTSentencePieceTokenizer']:
-                    word = tokenizer.decoder[token]
-                elif args.tokenizer_type == 'NullTokenizer':
-                    word = str(token)
-                else:
-                    word = tokenizer.tokenizer.decoder[token]
-                    word = bytearray(
-                        [tokenizer.tokenizer.byte_decoder[c] for c in word]).decode(
-                            'utf-8', errors='replace')
-                words.append(word)
+            if isinstance(tokenizer, HuggingFaceTokenizer):
+                words = tokenizer.detokenize(sequence_tokens).split()
+            else:
+                words = []
+                for token in sequence_tokens:
+                    if args.tokenizer_type in ['SentencePieceTokenizer', 'GPTSentencePieceTokenizer']:
+                        word = tokenizer.decoder[token]
+                    elif args.tokenizer_type == 'NullTokenizer':
+                        word = str(token)
+                    else:
+                        word = tokenizer.tokenizer.decoder[token]
+                        word = bytearray(
+                            [tokenizer.tokenizer.byte_decoder[c] for c in word]).decode(
+                                'utf-8', errors='replace')
+                    words.append(word)
             prompts_plus_generations_segments.append(words)
 
     if return_segments:

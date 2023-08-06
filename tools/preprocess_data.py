@@ -90,6 +90,10 @@ class Encoder(object):
             sentence_lens = []
             for sentence in sentences:
                 sentence_ids = Encoder.tokenizer.tokenize(sentence)
+                if self.args.chunk_size is not None:
+                    max_size = self.args.chunk_size - (1 if self.args.append_eod else 0)
+                    if len(sentence_ids) > max_size:
+                        sentence_ids = sentence_ids[:max_size]
                 if len(sentence_ids) > 0:
                     doc_ids.extend(sentence_ids)
                     sentence_lens.append(len(sentence_ids))
@@ -222,6 +226,8 @@ def get_args():
                         help='Number of file partitions')
     group.add_argument('--log-interval', type=int, default=1000,
                        help='Interval between progress updates')
+    group.add_argument('--chunk-size', type=int, default=None,
+                       help='Chunk size')
     args = parser.parse_args()
     args.keep_empty = False
 
